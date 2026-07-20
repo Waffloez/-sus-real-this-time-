@@ -1,17 +1,11 @@
-# ==========================================
-# SentinelSus Configuration
-# ==========================================
-
-# Change this to match exactly what your custom anti-cheat prints to the console log.
-# Replace the player's name with %player% and the cheat type with %reason%.
-# Important: Do not include color codes (&4, &c, etc.) here. Use only the raw text pattern.
+# MAKE SURE THIS MATCHES EXACTLY WHAT APPEARS IN CHAT
+# Delete or replace everything here except %player% and %reason%
+# Do not include colors like &c or &7.
 anti-cheat-alert-format: "Sentinel AC > %player% triggered %reason%"
 
-# The title and size of the /sus menu
 gui-title: "&4&lFlagged Suspects"
 gui-size: 27
 
-# The item description that appears when hovering over a flagged player's head
 lore:
   - "&7-------------------"
   - "&ePing: &a%ping%ms"
@@ -21,7 +15,6 @@ lore:
   - "&7-------------------"
   - "&aClick to teleport and inspect!"
 
-# Plugin messages
 messages:
   no-permission: "&cYou do not have permission to view flagged suspects."
   teleport-success: "&aTeleported to &6%target% &afor inspection."
