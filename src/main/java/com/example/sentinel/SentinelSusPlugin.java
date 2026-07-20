@@ -18,21 +18,18 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SentinelPlugin extends JavaPlugin implements CommandExecutor, Listener {
+public class SentinelSusPlugin extends JavaPlugin implements CommandExecutor, Listener {
 
     private String guiTitle;
     private int guiSize;
 
     @Override
     public void onEnable() {
-        // Save default config.yml if it doesn't exist
         this.saveDefaultConfig();
         
-        // Load custom settings from config
         this.guiTitle = color(getConfig().getString("gui-title", "&4&lFlagged Suspects"));
         this.guiSize = getConfig().getInt("gui-size", 27);
 
-        // Register the commands and events
         this.getCommand("sus").setExecutor(this);
         this.getServer().getPluginManager().registerEvents(this, this);
     }
@@ -64,7 +61,6 @@ public class SentinelPlugin extends JavaPlugin implements CommandExecutor, Liste
                 meta.setOwningPlayer(onlinePlayer);
                 meta.setDisplayName(ChatColor.RED + onlinePlayer.getName());
                 
-                // Parse place holders from config
                 List<String> dynamicLore = new ArrayList<>();
                 for (String line : configuredLore) {
                     line = line.replace("%ping%", String.valueOf(onlinePlayer.getPing()))
@@ -110,7 +106,6 @@ public class SentinelPlugin extends JavaPlugin implements CommandExecutor, Liste
         }
     }
 
-    // Quick helper to translate color codes like &c into Minecraft formatting
     private String color(String text) {
         return text == null ? "" : ChatColor.translateAlternateColorCodes('&', text);
     }
