@@ -20,15 +20,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Filter;
+import java.util.logging.LogRecord;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SentinelSusPlugin extends JavaPlugin implements CommandExecutor, Listener {
 
     private String guiTitle;
     private int guiSize;
     
-    // Storage for tracking flags dynamically in memory
     private final Map<UUID, Integer> violationCount = new HashMap<>();
     private final Map<UUID, String> lastFlagReason = new HashMap<>();
+    
+    private Pattern alertPattern;
 
     @Override
     public void onEnable() {
@@ -37,14 +42,56 @@ public class SentinelSusPlugin extends JavaPlugin implements CommandExecutor, Li
         this.guiTitle = color(getConfig().getString("gui-title", "&4&lFlagged Suspects"));
         this.guiSize = getConfig().getInt("gui-size", 27);
 
+        // Compile the regex pattern based on the config format
+        buildRegexPattern();
+
         this.getCommand("sus").setExecutor(this);
-        this.getCommand("susflag").setExecutor(this); // Register new flag tracker command
+        this.getCommand("susflag").setExecutor(this);
         this.getServer().getPluginManager().registerEvents(this, this);
+
+        // Hook into console logs to listen for the anti-cheat alerts completely hands-off
+        getServer().getLogger().setFilter(new Filter() {
+            @Override
+            public boolean isLoggable(LogRecord record) {
+                if (record.getMessage() != null && alertPattern != null) {
+                    // Strip color codes from the console log for clean matching
+                    String cleanMessage = ChatColor.stripColor(record.getMessage());
+                    Matcher matcher = alertPattern.matcher(cleanMessage);
+                    
+                    if (matcher.find()) {
+                        try {
+                            String playerName = matcher.group("player");
+                            String hackReason = matcher.group("reason");
+                            
+                            Player target = Bukkit.getPlayer(playerName);
+                            if (target != null) {
+                                UUID uuid = target.getUniqueId();
+                                violationCount.put(uuid, violationCount.getOrDefault(uuid, 0) + 1);
+                                lastFlagReason.put(uuid, hackReason);
+                            }
+                        } catch (IllegalArgumentException e) {
+                            // Occurs if the regex named groups are missing in config
+                        }
+                    }
+                }
+                return true;
+            }
+        });
+    }
+
+    private void buildRegexPattern() {
+        String format = getConfig().getString("anti-cheat-alert-format", "[Sentinel] %player% failed %reason%");
+        
+        // Escape regex special characters, then turn placeholders into named capture groups
+        String regex = Pattern.quote(format)
+                .replace("%player%", "\\E(?<player>[a-zA-Z0-9_]{3,16})\\Q")
+                .replace("%reason%", "\\E(?<reason>.+)\\Q");
+        
+        this.alertPattern = Pattern.compile(regex);
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        // Handle the /sus menu command
         if (command.getName().equalsIgnoreCase("sus")) {
             if (!(sender instanceof Player staff)) {
                 sender.sendMessage("Only players can use this command.");
@@ -64,7 +111,6 @@ public class SentinelSusPlugin extends JavaPlugin implements CommandExecutor, Li
             for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
                 if (slot >= guiSize) break;
 
-                // Only display players who have actually been flagged at least once
                 int violations = violationCount.getOrDefault(onlinePlayer.getUniqueId(), 0);
                 if (violations == 0) continue; 
 
@@ -98,7 +144,6 @@ public class SentinelSusPlugin extends JavaPlugin implements CommandExecutor, Li
             return true;
         }
 
-        // Handle the /susflag <player> <reason> command
         if (command.getName().equalsIgnoreCase("susflag")) {
             if (!sender.hasPermission("sentinel.sus.admin")) {
                 sender.sendMessage(ChatColor.RED + "No permission.");
@@ -116,7 +161,6 @@ public class SentinelSusPlugin extends JavaPlugin implements CommandExecutor, Li
                 return true;
             }
 
-            // Rebuild the flag reason from arguments
             StringBuilder reasonBuilder = new StringBuilder();
             for (int i = 1; i < args.length; i++) {
                 reasonBuilder.append(args[i]).append(" ");
@@ -127,7 +171,7 @@ public class SentinelSusPlugin extends JavaPlugin implements CommandExecutor, Li
             violationCount.put(uuid, violationCount.getOrDefault(uuid, 0) + 1);
             lastFlagReason.put(uuid, reason);
 
-            sender.sendMessage(ChatColor.GREEN + "Flagged " + target.getName() + " for: " + reason);
+            sender.sendMessage(ChatColor.GREEN + "Manually flagged " + target.getName());
             return true;
         }
 
@@ -150,9 +194,7 @@ public class SentinelSusPlugin extends JavaPlugin implements CommandExecutor, Li
             if (target != null && target.isOnline()) {
                 staff.closeInventory();
                 staff.teleport(target);
-                
-                String successMsg = getConfig().getString("messages.teleport-success", "&aTeleported to &6%target% &afor inspection.");
-                staff.sendMessage(color(successMsg.replace("%target%", target.getName())));
+                staff.sendMessage(color(getConfig().getString("messages.teleport-success").replace("%target%", target.getName())));
             } else {
                 staff.sendMessage(color(getConfig().getString("messages.player-offline")));
                 staff.closeInventory();
