@@ -8,8 +8,10 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.server.BroadcastMessageEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
@@ -20,8 +22,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.logging.Filter;
-import java.util.logging.LogRecord;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -42,45 +42,15 @@ public class SentinelSusPlugin extends JavaPlugin implements CommandExecutor, Li
         this.guiTitle = color(getConfig().getString("gui-title", "&4&lFlagged Suspects"));
         this.guiSize = getConfig().getInt("gui-size", 27);
 
-        // Compile the regex pattern based on the config format
         buildRegexPattern();
 
         this.getCommand("sus").setExecutor(this);
         this.getCommand("susflag").setExecutor(this);
         this.getServer().getPluginManager().registerEvents(this, this);
-
-        // Hook into console logs to listen for the anti-cheat alerts completely hands-off
-        getServer().getLogger().setFilter(new Filter() {
-            @Override
-            public boolean isLoggable(LogRecord record) {
-                if (record.getMessage() != null && alertPattern != null) {
-                    // Strip color codes from the console log for clean matching
-                    String cleanMessage = ChatColor.stripColor(record.getMessage());
-                    Matcher matcher = alertPattern.matcher(cleanMessage);
-                    
-                    if (matcher.find()) {
-                        try {
-                            String playerName = matcher.group("player");
-                            String hackReason = matcher.group("reason");
-                            
-                            Player target = Bukkit.getPlayer(playerName);
-                            if (target != null) {
-                                UUID uuid = target.getUniqueId();
-                                violationCount.put(uuid, violationCount.getOrDefault(uuid, 0) + 1);
-                                lastFlagReason.put(uuid, hackReason);
-                            }
-                        } catch (IllegalArgumentException e) {
-                            // Occurs if the regex named groups are missing in config
-                        }
-                    }
-                }
-                return true;
-            }
-        });
     }
 
     private void buildRegexPattern() {
-        String format = getConfig().getString("anti-cheat-alert-format", "[Sentinel] %player% failed %reason%");
+        String format = getConfig().getString("anti-cheat-alert-format", "Sentinel AC > %player% triggered %reason%");
         
         // Escape regex special characters, then turn placeholders into named capture groups
         String regex = Pattern.quote(format)
@@ -88,6 +58,36 @@ public class SentinelSusPlugin extends JavaPlugin implements CommandExecutor, Li
                 .replace("%reason%", "\\E(?<reason>.+)\\Q");
         
         this.alertPattern = Pattern.compile(regex);
+    }
+
+    // Intercepts server broadcast alerts
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onBroadcast(BroadcastMessageEvent event) {
+        checkAndParseMessage(event.getMessage());
+    }
+
+    private void checkAndParseMessage(String rawMessage) {
+        if (rawMessage == null || alertPattern == null) return;
+
+        // Strip color codes completely to ensure exact text matching
+        String cleanMessage = ChatColor.stripColor(color(rawMessage));
+        Matcher matcher = alertPattern.matcher(cleanMessage);
+        
+        if (matcher.find()) {
+            try {
+                String playerName = matcher.group("player");
+                String hackReason = matcher.group("reason");
+                
+                Player target = Bukkit.getPlayer(playerName);
+                if (target != null) {
+                    UUID uuid = target.getUniqueId();
+                    violationCount.put(uuid, violationCount.getOrDefault(uuid, 0) + 1);
+                    lastFlagReason.put(uuid, hackReason);
+                }
+            } catch (IllegalArgumentException e) {
+                // Catch missing capture groups
+            }
+        }
     }
 
     @Override
