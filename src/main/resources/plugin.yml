@@ -1,9 +1,8 @@
 name: SentinelSus
 version: 1.0.0
-main: com.example.sentinel.SentinelPlugin
+main: com.example.sentinel.SentinelSusPlugin
 api-version: 1.20
 commands:
   sus:
-    description: Open the flagged suspects menu.
+    description: Open the DonutSMP-style flagged suspects menu.
     permission: sentinel.sus
-    permission-message: §cYou do not have permission to use /sus.
