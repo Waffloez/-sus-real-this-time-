@@ -6,3 +6,6 @@ commands:
   sus:
     description: Open the DonutSMP-style flagged suspects menu.
     permission: sentinel.sus
+  susflag:
+    description: Add a flag violation to a player.
+    permission: sentinel.sus.admin
