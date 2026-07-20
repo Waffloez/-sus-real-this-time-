@@ -1,20 +1,16 @@
-# Sentinel /sus Configuration
-
-# The title at the top of the GUI menu
 gui-title: "&4&lFlagged Suspects"
-
-# Size of the inventory (Must be a multiple of 9: 9, 18, 27, 36, 45, 54)
 gui-size: 27
 
-# Custom lore formatting on the player heads
 lore:
-  - "&7Ping: &a%ping%ms"
-  - "&7Health: &a%health%/20"
-  - ""
-  - "&e▶ Click to Teleport & Investigate"
+  - "&7-------------------"
+  - "&ePing: &a%ping%ms"
+  - "&eHealth: &c%health% HP"
+  - "&eLast Flag: &c%reason%"
+  - "&eViolations: &4%violations%"
+  - "&7-------------------"
+  - "&aClick to teleport and inspect!"
 
-# Chat messages sent to staff members
 messages:
-  no-permission: "&cYou do not have permission to use /sus."
+  no-permission: "&cYou do not have permission to view flagged suspects."
   teleport-success: "&aTeleported to &6%target% &afor inspection."
   player-offline: "&cThat player is no longer online."
