@@ -20,11 +20,19 @@ import java.util.List;
 
 public class SentinelPlugin extends JavaPlugin implements CommandExecutor, Listener {
 
-    private final String GUI_TITLE = ChatColor.DARK_RED + "" + ChatColor.BOLD + "Flagged Suspects";
+    private String guiTitle;
+    private int guiSize;
 
     @Override
     public void onEnable() {
-        // Register both the command and the click listener to this class
+        // Save default config.yml if it doesn't exist
+        this.saveDefaultConfig();
+        
+        // Load custom settings from config
+        this.guiTitle = color(getConfig().getString("gui-title", "&4&lFlagged Suspects"));
+        this.guiSize = getConfig().getInt("gui-size", 27);
+
+        // Register the commands and events
         this.getCommand("sus").setExecutor(this);
         this.getServer().getPluginManager().registerEvents(this, this);
     }
@@ -36,13 +44,18 @@ public class SentinelPlugin extends JavaPlugin implements CommandExecutor, Liste
             return true;
         }
 
-        // Create a 27-slot GUI (3 rows)
-        Inventory gui = Bukkit.createInventory(null, 27, GUI_TITLE);
+        if (!staff.hasPermission("sentinel.sus")) {
+            staff.sendMessage(color(getConfig().getString("messages.no-permission")));
+            return true;
+        }
+
+        Inventory gui = Bukkit.createInventory(null, guiSize, guiTitle);
         int slot = 0;
 
-        // Loop through all online players and put their heads in the menu
+        List<String> configuredLore = getConfig().getStringList("lore");
+
         for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
-            if (slot >= 27) break; // Stop if the GUI fills up
+            if (slot >= guiSize) break;
 
             ItemStack playerHead = new ItemStack(Material.PLAYER_HEAD);
             SkullMeta meta = (SkullMeta) playerHead.getItemMeta();
@@ -51,14 +64,15 @@ public class SentinelPlugin extends JavaPlugin implements CommandExecutor, Liste
                 meta.setOwningPlayer(onlinePlayer);
                 meta.setDisplayName(ChatColor.RED + onlinePlayer.getName());
                 
-                // DonutSMP Style stats overview
-                List<String> lore = new ArrayList<>();
-                lore.add(ChatColor.GRAY + "Ping: " + ChatColor.GREEN + onlinePlayer.getPing() + "ms");
-                lore.add(ChatColor.GRAY + "Health: " + ChatColor.GREEN + (int) onlinePlayer.getHealth() + "/20");
-                lore.add("");
-                lore.add(ChatColor.YELLOW + "▶ Click to Teleport & Investigate");
+                // Parse place holders from config
+                List<String> dynamicLore = new ArrayList<>();
+                for (String line : configuredLore) {
+                    line = line.replace("%ping%", String.valueOf(onlinePlayer.getPing()))
+                               .replace("%health%", String.valueOf((int) onlinePlayer.getHealth()));
+                    dynamicLore.add(color(line));
+                }
                 
-                meta.setLore(lore);
+                meta.setLore(dynamicLore);
                 playerHead.setItemMeta(meta);
             }
 
@@ -72,10 +86,8 @@ public class SentinelPlugin extends JavaPlugin implements CommandExecutor, Liste
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        // Only run if they are clicking inside the Suspects menu
-        if (!event.getView().getTitle().equals(GUI_TITLE)) return;
+        if (!event.getView().getTitle().equals(guiTitle)) return;
 
-        // Cancel the event so staff cannot pull heads out into their own inventory
         event.setCancelled(true);
 
         if (event.getCurrentItem() == null || event.getCurrentItem().getType() != Material.PLAYER_HEAD) return;
@@ -88,11 +100,18 @@ public class SentinelPlugin extends JavaPlugin implements CommandExecutor, Liste
             if (target != null && target.isOnline()) {
                 staff.closeInventory();
                 staff.teleport(target);
-                staff.sendMessage(ChatColor.GREEN + "Teleported to " + ChatColor.GOLD + target.getName() + ChatColor.GREEN + " for inspection.");
+                
+                String successMsg = getConfig().getString("messages.teleport-success", "&aTeleported to &6%target% &afor inspection.");
+                staff.sendMessage(color(successMsg.replace("%target%", target.getName())));
             } else {
-                staff.sendMessage(ChatColor.RED + "That player is no longer online.");
+                staff.sendMessage(color(getConfig().getString("messages.player-offline")));
                 staff.closeInventory();
             }
         }
+    }
+
+    // Quick helper to translate color codes like &c into Minecraft formatting
+    private String color(String text) {
+        return text == null ? "" : ChatColor.translateAlternateColorCodes('&', text);
     }
 }
