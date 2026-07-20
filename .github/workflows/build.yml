@@ -1,4 +1,4 @@
-name: Build Sentinel Plugin
+name: Build Sentinel Sus Plugin
 
 on:
   push:
@@ -27,5 +27,5 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Sentinel-Jar
+        name: Sentinel-Sus-Jar
         path: target/*.jar
