@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.example</groupId>
-    <artifactId>sentinel</artifactId>
+    <artifactId>sentinel-sus</artifactId>
     <version>1.0.0</version>
 
     <properties>
@@ -31,6 +31,7 @@
     </dependencies>
 
     <build>
+        <finalName>sentinel-sus-1.0.0</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
